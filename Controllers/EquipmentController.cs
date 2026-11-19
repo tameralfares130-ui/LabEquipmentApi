@@ -1,4 +1,5 @@
 using LabEquipmentApi.Data;
+using FluentValidation;
 using LabEquipmentApi.Contracts.Equipment;
 using Mapster;
 using LabEquipmentApi.Domain;
@@ -9,9 +10,10 @@ namespace LabEquipmentApi.Controllers;
 
 [Route("api/equipment")]
 [ApiController]
-public class EquipmentController(LabDbContext context) : ControllerBase
+public class EquipmentController(LabDbContext context, IValidator<CreateEquipmentRequest> createValidator) : ControllerBase
 {
     private readonly LabDbContext _context = context;
+    private readonly IValidator<CreateEquipmentRequest> _createValidator = createValidator;
 
     // GET: api/equipment
     [HttpGet]
@@ -62,8 +64,25 @@ public class EquipmentController(LabDbContext context) : ControllerBase
 
     // POST: api/equipment
     [HttpPost]
-    public async Task<ActionResult<Equipment>> PostEquipment(Equipment equipment)
+    public async Task<ActionResult<Equipment>> PostEquipment(CreateEquipmentRequest request)
     {
+        var validationResult = await _createValidator.ValidateAsync(request);
+        if (!validationResult.IsValid)
+        {
+            foreach (var error in validationResult.Errors)
+            {
+                ModelState.AddModelError(error.PropertyName, error.ErrorMessage);
+            }
+            return ValidationProblem(ModelState);
+        }
+
+        var equipment = new Equipment
+        {
+            Name = request.Name,
+            Room = request.Room,
+            IsAvailable = true
+        };
+
         _context.EquipmentItems.Add(equipment);
         await _context.SaveChangesAsync();
         return CreatedAtAction(nameof(GetEquipment), new { id = equipment.Id }, equipment);
