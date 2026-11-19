@@ -35,6 +35,25 @@ public class EquipmentController(LabDbContext context, IValidator<CreateEquipmen
         return Ok(available);
     }
 
+    // GET: api/equipment/room-summary (optional item 6)
+    [HttpGet("room-summary")]
+    public async Task<ActionResult<IEnumerable<RoomSummaryResponse>>> GetRoomSummary()
+    {
+        var summary = await _context.EquipmentItems
+            .AsNoTracking()
+            .GroupBy(e => e.Room)
+            .Select(group => new RoomSummaryResponse
+            {
+                Room = group.Key,
+                TotalCount = group.Count(),
+                AvailableCount = group.Count(e => e.IsAvailable)
+            })
+            .OrderBy(item => item.Room)
+            .ToListAsync();
+
+        return Ok(summary);
+    }
+
     // GET: api/equipment/5
     [HttpGet("{id:int}")]
     public async Task<ActionResult<Equipment>> GetEquipment(int id)
